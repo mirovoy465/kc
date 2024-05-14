@@ -122,7 +122,7 @@ class DecisionTreeRegressor:
         Node: The resulting node after splitting.
         """
         node = Node(n_samples=X.shape[0], value=int(np.round(np.mean(y))), mse=self._mse(y))
-        if depth == self.max_depth or node.n_samples < self.min_samples_split:
+        if depth == self.max_depth:
             return node
         feature_best, threshold_best = self._best_split(X, y)
         if feature_best is None:
@@ -130,9 +130,8 @@ class DecisionTreeRegressor:
         node.feature = feature_best
         node.threshold = threshold_best
         left = X[:, feature_best] <= threshold_best
-        right = X[:, feature_best] > threshold_best
         node.left = self._split_node(X[left], y[left], depth + 1)
-        node.right = self._split_node(X[right], y[right], depth + 1)
+        node.right = self._split_node(X[~left], y[~left], depth + 1)
         return node
 
 

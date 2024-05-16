@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import numpy as np
-
+import json
 @dataclass
 class Node:
     """
@@ -95,7 +95,7 @@ class DecisionTreeRegressor:
         """
         if np.unique(y).size == 1 or X.shape[0] < self.min_samples_split:
             return None, None
-        feature_best, threshold_best, mse_best = None, None, float('inf')
+        feature_best, threshold_best, mse_best = None, None, float("inf")
         for feature in range(X.shape[1]):
             thresholds = np.unique(X[:, feature])
             for threshold in thresholds:
@@ -121,8 +121,8 @@ class DecisionTreeRegressor:
         Returns:
         Node: The resulting node after splitting.
         """
-        node = Node(n_samples=X.shape[0], value=int(np.round(np.mean(y))), mse=self._mse(y))
-        if depth == self.max_depth:
+        node = Node(n_samples=X.shape[0], value = int(np.round(np.mean(y))), mse=self._mse(y))
+        if depth >= self.max_depth:
             return node
         feature_best, threshold_best = self._best_split(X, y)
         if feature_best is None:
@@ -134,11 +134,58 @@ class DecisionTreeRegressor:
         node.right = self._split_node(X[~left], y[~left], depth + 1)
         return node
 
+    def as_json(self) -> str:
+        """Return the decision tree as a JSON string."""
+        json_string = json.dumps(self._as_json(self.tree_))
+        return json_string
 
-# import pandas as pd        
-# data = pd.read_csv('D:\kc\decision_tree\data.csv')
-# y = data['delay_days']
-# X = data.drop('delay_days', axis=1)
-# tree = DecisionTreeRegressor(5)
-# tree.fit(X, y)
+    def _as_json(self, node: Node) -> str:
+        """Return the decision tree as a JSON string. Execute recursively."""
 
+        if node.left is None:
+            json_dict = {
+            "value" : node.value,
+            "n_samples": node.n_samples,
+            "mse": np.round(node.mse,2)
+            }
+        else:
+            json_dict = {
+            "feature": node.feature,
+            "threshold": node.threshold.item(),
+            "n_samples": node.n_samples,
+            "mse": np.round(node.mse,2),
+            "left" : self._as_json(node.left),
+            "right" : self._as_json(node.right)
+            }
+        return json_dict
+    
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """
+        Predict regression target for X.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The input samples.
+
+        Returns
+        -------
+        y : array of shape (n_samples,)
+            The predicted values.
+        """
+        if X[0].shape:
+            return [self._predict_one_sample(x) for x in X]
+        else:
+            return self._predict_one_sample(X)
+
+
+    def _predict_one_sample(self, features: np.ndarray) -> int:
+        """Predict the target value of a single sample."""
+        current_node = self.tree_
+        while current_node.left is not None:
+            if features[current_node.feature] <= current_node.threshold:
+                current_node = current_node.left
+            else:
+                current_node = current_node.right
+        ans = current_node.value
+        return ans
